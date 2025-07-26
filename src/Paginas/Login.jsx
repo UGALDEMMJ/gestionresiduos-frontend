@@ -111,12 +111,9 @@ const Login = () => {
                             </button>
                         </div>
                     </form>
-                    <div className='mt-4 flex justify-between'>
+                    <div className='mt-4 flex flex-col items-center justify-center'>
                         <div className="text-center">
                             No tienes cuenta?<br></br><Link className="text-blue-500 underline" to={'/registrar'}>Crea Una</Link>
-                        </div>
-                        <div className="text-center">
-                            ¿Olvidaste tu contraseña? <br></br><Link className="text-blue-500 underline" to={'/olvide-password'}>Recupérala aquí</Link>
                         </div>
                     </div>
                 </div>

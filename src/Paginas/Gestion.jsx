@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../Supabase/client'
+import { Link } from 'react-router-dom'
+import clienteAxios from '../config/axios'
 import useAuth from '../hooks/useAuth';
-import clienteAxios from '../config/axios';
 
 const Gestion = () => {
 
   const { auth } = useAuth();
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [mensajeAlerta, setMensajeAlerta] = useState('');
   const [cargando, setCargando] = useState(false);
   const [editando, setEditando] = useState(false);
   const [transportes, setTransportes] = useState([]);
@@ -26,8 +28,16 @@ const Gestion = () => {
     generadorId: '',
     transporteId: '',
     imagen_url: '',
-    usuarioId: ''
   });
+
+
+  useEffect(() => {
+    if (transportes.length === 0 || generadores.length === 0) {
+      setMensajeAlerta('Debe agregar al menos un transporte y un generador, para poder registrar un residuo!!');
+    } else {
+      setMensajeAlerta('');
+    }
+  }, [transportes, generadores]);
 
   useEffect(() => {
     obtenerResiduos();
@@ -35,35 +45,51 @@ const Gestion = () => {
     obtenerTransportes();
   }, []);
 
+  const reiniciarFormulario = () => {
+    setEditando(false);
+    setGestion(null);
+    obtenerResiduos();
+    setTimeout(() => {
+      setFormData({
+        tipo: '',
+        cantidad: '',
+        condicion: '',
+        fecha_coleccion: '',
+        preparacion: '',
+        observaciones: '',
+        generadorId: '',
+        transporteId: '',
+        imagen_url: '',
+      });
+      setIsOpen(false);
+    }, 2000);
+  }
+
   const obtenerResiduos = async () => {
     const { data: residuos, error } = await clienteAxios.get('/residuo/all');
-
     if (error) {
       console.log(error);
     } else {
       setData(residuos);
-      console.log(residuos);
     }
   };
 
   const obtenerGeneradores = async () => {
     const { data: generadoresData, error: generadoresError } = await clienteAxios.get('/generador/all');
-
     if (generadoresError) {
       console.log(generadoresError);
     } else {
       setGeneradores(generadoresData);
     }
-  }
+  };
 
   const obtenerTransportes = async () => {
-    const { data: transportesData, error: transpportesError } = await clienteAxios.get('/transporte/all');
-
-    if (transpportesError) {
-      console.log(transportesData);
+    const { data: transportesData, error: transportesError } = await clienteAxios.get('/transporte/all')
+    if (transportesError) {
+      console.log(transportesError);
     } else {
       setTransportes(transportesData);
-    };
+    }
   }
 
   const manejarImagenChange = (e) => {
@@ -71,101 +97,73 @@ const Gestion = () => {
   }
 
   const subirImagen = async () => {
-    if (!imagen) {
-      setErrorMessage('No se seleccionó ninguna imagen');
-      return null;
-    }
-    // Limpiar el nombre del archivo: solo letras, números, puntos y guiones bajos
-    const nombreSeguro = imagen.name;
-    const nombreImagen = `${Date.now()}_${nombreSeguro}`;
+    const nombreImagen = `images/${Date.now()}_${imagen.name}`;
 
-    const { error } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('gestionresiduos')
       .upload(nombreImagen, imagen);
 
-    if (error) {
-      console.log(error);
-      setErrorMessage('Error al subir la imagen: ' + error.message);
+    if (uploadError) {
+      console.error('Error al subir la imagen:', uploadError);
       return null;
     }
 
-    const { data: publicUrlData } = supabase.storage
+    const { data: publicUrlData, error: publicUrlError } = await supabase.storage
       .from('gestionresiduos')
       .getPublicUrl(nombreImagen);
 
-    return publicUrlData ? publicUrlData.publicUrl : null;
+    if (publicUrlError) {
+      console.error('Error al obtener la URL pública de la imagen:', publicUrlError);
+      return null;
+    }
+
+    console.log('URL pública obtenida:', publicUrlData.publicUrl);
+    return publicUrlData.publicUrl;
   }
 
-  const eliminarImagen = async (bucketName, imagePath) => {
-    if (!imagePath) {
-      console.log('No se proporcionó un nombre de archivo para eliminar.');
+  const eliminarImagen = async (id) => {
+    const { data: data, error } = await clienteAxios.get(`/residuo/obtener/${id}`);
+
+    if (error) {
+      console.log(error);
       return;
     }
-
-    try {
-      const { data, error } = await supabase.storage
-        .from(bucketName)
-        .remove([imagePath]);
-
-      if (error) {
-        console.error('Error al eliminar la imagen:', error.message);
-      } else {
-        console.log('Imagen eliminada correctamente:', data);
-      }
-    } catch (err) {
-      console.error('Ocurrió un error inesperado al eliminar la imagen:', err);
+    const nombreImagen = data.imagen_url.split('/').pop();
+    console.log("Nombre de la imagen a eliminar:", nombreImagen);
+    const { error: deleteError } = await supabase.storage
+      .from('gestionresiduos')
+      .remove([`images/${nombreImagen}`]);
+    if (deleteError) {
+      console.log(deleteError);
     }
   }
-
-  // Función para inicializar el estado del formulario
-  const inicializarFormData = () => ({
-    tipo: '',
-    cantidad: '',
-    condicion: '',
-    fecha_coleccion: '',
-    preparacion: '',
-    observaciones: '',
-    generadorId: '',
-    transporteId: '',
-    imagen_url: '',
-    usuarioId: ''
-  });
-
-  // Función para manejar mensajes de error
-  const manejarError = (mensaje) => {
-    setErrorMessage(mensaje);
-    setTimeout(() => setErrorMessage(''), 3000);
-  };
-
-  // Función para manejar mensajes de éxito
-  const manejarExito = (mensaje) => {
-    setSuccessMessage(mensaje);
-    setTimeout(() => setSuccessMessage(''), 3000);
-  };
 
   const manejarEliminar = async (id) => {
-    const resultado = confirm('¿Está seguro de eliminar este residuo?');
-
+    const resultado = confirm('¿Esta seguro de eliminar este residuo?');
     if (!resultado) {
-      alert('Operación cancelada');
+      alert('Operacion cancelada');
       return;
     }
 
-    const residuo = data.find((item) => item.id === id);
-    if (residuo && residuo.imagen_url) {
-      const imagePath = residuo.imagen_url.split('/gestionresiduos/')[1];
-      console.log('Eliminando imagen:', imagePath);
-      await eliminarImagen('gestionresiduos', imagePath);
-    }
-
+    await eliminarImagen(id);
     const { error } = await clienteAxios.delete(`/residuo/eliminar/${id}`);
 
     if (error) {
-      manejarError('Error al eliminar el residuo: ' + error.message);
+      setErrorMessage('Error al eliminar el residuo: ' + error.message);
     } else {
       alert('Residuo eliminado exitosamente');
       obtenerResiduos();
-      setFormData(inicializarFormData());
+      setFormData({
+        tipo: '',
+        cantidad: '',
+        condicion: '',
+        fecha_coleccion: '',
+        preparacion: '',
+        observaciones: '',
+        generadorId: '',
+        transporteId: '',
+        imagen_url: '',
+      });
     }
   };
 
@@ -175,12 +173,12 @@ const Gestion = () => {
       tipo: item.tipo,
       cantidad: item.cantidad,
       condicion: item.condicion,
-      fecha_coleccion: item.fecha_coleccion,
+      fecha_coleccion: new Date(item.fecha_coleccion).toISOString(),
       preparacion: item.preparacion,
       observaciones: item.observaciones,
-      generadorId: item.generador_id,
+      generadorId: item.generadorId,
       imagen_url: item.imagen_url,
-      transporteId: item.transporte_id,
+      transporteId: item.transporteId,
       usuarioId: auth.id
     });
     setEditando(true);
@@ -194,75 +192,69 @@ const Gestion = () => {
 
   const manejarSubmit = async (e) => {
     e.preventDefault();
+    setCargando(true);
     setErrorMessage('');
     setSuccessMessage('');
-    setCargando(true);
+    let imagenUrl = formData.imagen_url;
+    console.log("Imagen URL antes de subir:", imagenUrl);
+    imagenUrl = await subirImagen();
+    console.log("Imagen URL después de subir:", imagenUrl);
 
-    const nuevaImagenUrl = await subirImagen();
-    if (!nuevaImagenUrl) {
-      manejarError('Error al subir la imagen');
+    if (!imagenUrl) {
+      setErrorMessage('Error al subir la imagen');
       setCargando(false);
       return;
     }
 
-    // Convertir fecha a formato ISO
-    let fechaColeccionISO = '';
-    if (formData.fecha_coleccion?.length === 10) {
-      fechaColeccionISO = new Date(formData.fecha_coleccion).toISOString();
-    } else {
-      fechaColeccionISO = formData.fecha_coleccion;
-    }
-
     const formularioData = {
-      ...formData,
-      fecha_coleccion: fechaColeccionISO,
-      imagen_url: nuevaImagenUrl,
-      generadorId: formData.generadorId ? parseInt(formData.generadorId) : null,
-      transporteId: formData.transporteId ? parseInt(formData.transporteId) : null,
-      usuarioId: auth.id,
+      tipo: formData.tipo,
+      cantidad: formData.cantidad,
+      condicion: formData.condicion,
+      fecha_coleccion: new Date(formData.fecha_coleccion).toISOString(),
+      preparacion: formData.preparacion,
+      observaciones: formData.observaciones,
+      generadorId: parseInt(formData.generadorId),
+      transporteId: parseInt(formData.transporteId),
+      imagen_url: imagenUrl,
+      usuarioId: auth.id
     };
 
-    if (editando && gestion) {
-      const imagenAnterior = gestion.imagen_url;
+    
+    if (editando && gestion && gestion.imagen_url) {
+      await eliminarImagen(gestion.id);
+    }
 
+    if (editando && gestion) {
       const { error } = await clienteAxios.put(`/residuo/actualizar/${gestion.id}`, formularioData);
+
       if (error) {
-        manejarError('Error al editar el residuo: ' + error.message);
-        const imagePath = nuevaImagenUrl.split('/gestionresiduos/')[1];
-        await eliminarImagen('gestionresiduos', imagePath);
+        setErrorMessage('Error al editar el residuo: ' + error.message);
       } else {
-        manejarExito('Residuo editado exitosamente');
-        const imagePath = imagenAnterior.split('/gestionresiduos/')[1];
-        await eliminarImagen('gestionresiduos', imagePath);
-        setEditando(false);
-        setGestion(null);
-        obtenerResiduos();
-        setTimeout(() => {
-          setFormData(inicializarFormData());
-          setIsOpen(false);
-        }, 2000);
+        setSuccessMessage('Residuo editado exitosamente');
+        reiniciarFormulario();
       }
     } else {
-      const { error } = await clienteAxios.post(`/residuo/crear`, formularioData);
+      const { error } = await clienteAxios.post('/residuo/crear', formularioData);
+
       if (error) {
-        manejarError('Error al agregar el residuo: ' + error.message);
-        const imagePath = nuevaImagenUrl.split('/gestionresiduos/')[1];
-        await eliminarImagen('gestionresiduos', imagePath);
+        setErrorMessage('Error al agregar el residuo: ' + error.message);
       } else {
-        manejarExito('Residuo agregado exitosamente');
-        setFormData(inicializarFormData());
-        obtenerResiduos();
-        setIsOpen(false);
+        setSuccessMessage('Residuo agregado exitosamente');
+        reiniciarFormulario();
       }
     }
 
-    setCargando(false);
+    setTimeout(() => {
+      setSuccessMessage('');
+      setCargando(false);
+    }, 2000);
   };
 
   return (
     <div className="p-4 h-screen">
       <h1 className="text-xl font-bold underline">Residuos</h1>
       <p className='text-lg m-4'>En este espacio puedes agregar, editar y eliminar residuos, presiona el boton para agregar</p>
+      <p className="text-red-500 font-bold m-4 text-3xl">{mensajeAlerta}</p>
       <div className="flex justify-center mb-4">
         <button
           onClick={() => {
@@ -400,13 +392,15 @@ const Gestion = () => {
               </div>
               <button
                 type="submit"
-                className="px-4 py-2 bg-green-500 text-black rounded"
+                className={`px-4 py-2 rounded text-black transition duration-300 ${cargando ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-700'
+                  }`}
                 disabled={cargando}
               >
-                {editando ? 'Actualizar' : 'Enviar'}
+                {cargando ? 'Procesando...' : editando ? 'Actualizar' : 'Enviar'}
               </button>
               <button
                 type="button"
+                disabled={cargando}
                 onClick={() => setIsOpen(false)}
                 className="ml-2 px-4 py-2 bg-red-500 text-black rounded"
               >
@@ -419,7 +413,7 @@ const Gestion = () => {
 
       <div className="mt-6 ">
         <h2 className="text-lg font-bold">Residuos Guardados:</h2>
-        <div className="mt-4 h-auto">
+        <div className="mt-4 h-[600px] overflow-y-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {data.map((item) => (
 
@@ -432,20 +426,28 @@ const Gestion = () => {
                   />
                 )}
                 <h3 className="text-xl"><span className="font-bold">Id de la colección:</span> {item.id}</h3>
-                <p className="text-gray-600">Tipo: {item.tipo}</p>
-                <p className="text-gray-600">Cantidad: {item.cantidad} kg</p>
-                <p className="text-gray-600">Condición: {item.condicion}</p>
-                <p className="text-gray-600">Fecha de colección: {item.fecha_coleccion}</p>
-                <p className="text-gray-600">Preparación: {item.preparacion}</p>
-                <p className="text-gray-600">Observaciones: {item.observaciones}</p>
-                <p className="text-gray-600">
-                  <span className="font-bold">Transporte:</span>
-                  {item.transporte ? item.transporte.via_transporte : 'No especificado'}
-                </p>
-                <p className="text-gray-600">
-                  <span className="font-bold">Generador:</span>
-                  {item.generadores ? item.generadores.nombre : 'No especificado'}
-                </p>
+                <div className='text-gray-600'>
+                  <p><span className='text-black font-bold'>Tipo:</span> {item.tipo}</p>
+                  <p><span className='text-black font-bold'>Cantidad:</span> {item.cantidad} kg</p>
+                  <p><span className='text-black font-bold'>Condición:</span> {item.condicion}</p>
+                  <p><span className='text-black font-bold'>Fecha de colección:</span> {item.fecha_coleccion}</p>
+                  <p><span className='text-black font-bold'>Preparación:</span> {item.preparacion}</p>
+                  <p><span className='text-black font-bold'>Observaciones:</span> {item.observaciones}</p>
+                  <p>
+                    <Link to={`/app/transporte/`} className="hover:underline font-bold text-black hover:text-blue-600">Transporte: </Link>
+                    {transportes.find(t => t.id === item.transporteId) ? transportes.find(t => t.id === item.transporteId).via_transporte : 'No especificado'}
+                  </p>
+                  <p> <span className='text-black font-bold'>Matricula del transporte: </span> 
+                  {transportes.find(t => t.id === item.transporteId) ? transportes.find(t => t.id === item.transporteId).matricula : 'No especificado'}
+                  </p>
+                  <p>
+                    <Link to={`/app/generadores/`} className="hover:underline font-bold text-black hover:text-blue-600">Nombre del generador: </Link>
+                    {generadores.find(g => g.id === item.generadorId) ? generadores.find(g => g.id === item.generadorId).nombre : 'No especificado'}
+                  </p>
+                  <p> <span className='text-black font-bold'>Encargado del generador: </span> 
+                    {generadores.find(g => g.id === item.generadorId) ? generadores.find(g => g.id === item.generadorId).encargado : 'No especificado'}
+                  </p>
+                </div>
                 <div className="flex justify-end space-x-2 mt-4">
                   <button
                     onClick={() => manejarEditar(item)}
