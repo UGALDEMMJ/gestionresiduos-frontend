@@ -27,7 +27,6 @@ const AuthProvider = ({ children }) => {
                 const { data } = await clienteAxios('/usuario/perfil', config)
                 setAuth(data)
             } catch (error) {
-                console.log(error.response.data.msg)
                 setAuth({})
             }
 
@@ -44,62 +43,6 @@ const AuthProvider = ({ children }) => {
         window.location.href = '/';
     }
 
-    const actualizarPerfil = async datos => {
-        const token = localStorage.getItem('token')
-        if (!token) {
-            setCargando(false)
-            return
-        }
-        const config = {
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`
-            }
-        }
-        try {
-            const url =`/usuario/actualizar/${datos.id}`
-            const {data} = await clienteAxios.put(url, datos, config)
-            return {
-                msg: 'Almacenado Correctamente',
-                error: false
-            }
-        } catch (error) {
-            return {
-                msg: error.response.data.msg,
-                error: true
-            }
-        }
-
-    }
-
-    const guardarPassword = async (datos) =>{
-        
-        const token = localStorage.getItem('token')
-        if (!token) {
-            setCargando(false)
-            return
-        }
-        const config = {
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`
-            }
-        }
-        try {
-            const url = '/veterinarios/actualizar-password'
-            const {data} = await clienteAxios.put(url, datos, config)
-            console.log(data)
-            return {
-                msg: data.msg
-            }
-        } catch (error) {
-            return {
-                msg: error.response.data.msg,
-                error: true
-            }
-        }
-    }
-
     return (
         <AuthContext.Provider
             value={{
@@ -107,8 +50,6 @@ const AuthProvider = ({ children }) => {
                 setAuth,
                 cargando,
                 cerrarSesion,
-                actualizarPerfil,
-                guardarPassword
             }}
         >
             {children}

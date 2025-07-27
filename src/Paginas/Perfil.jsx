@@ -51,6 +51,7 @@ const Profile = () => {
 
 
   return (
+    <>
     <div className="flex flex-col gap-4  p-6 h-screen bg-white rounded shadow-lg">
         <h1 className="text-xl font-bold underline">Ajustes de Perfil</h1>
         <p className='text-lg'>En este espacio puedes visualizar tu información personal</p>
@@ -61,14 +62,15 @@ const Profile = () => {
           <p className='text-3xl font-bold'>Fecha de Creación de la cuenta: <span className='font-normal'>{new Date(usuario.creado_en).toLocaleDateString()}</span></p>
         </div>
       <div className='flex justify-normal mt-4 p-4'>
-        <Link to="/" className='mr-4'>
+        <Link to="editar-perfil" className='mr-4'>
           <button className='bg-blue-500 text-white py-2 px-4 rounded'>Editar Perfil</button>
         </Link>
         <button onClick={eliminarCuenta} className='mr-4'>
-          <button className='bg-red-500 text-white py-2 px-4 rounded'>Eliminar Cuenta</button>
+          <a className='bg-red-500 text-white py-2 px-4 rounded'>Eliminar Cuenta</a>
         </button>
       </div>
     </div>
+    </>
   )
 }
 

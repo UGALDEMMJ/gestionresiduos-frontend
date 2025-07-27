@@ -11,6 +11,7 @@ import GuiaReciclaje from './Paginas/GuiaReciclaje'
 import Generadores from './Paginas/Generadores'
 import Transporte from './Paginas/Transporte'
 import Gestion from './Paginas/Gestion'
+import EditarPerfil from './Paginas/EditarPerfil'
 
 
 function App() {
@@ -24,17 +25,18 @@ function App() {
 
 
           Parte privada
-          <Route element={<ProtectedRoute />}>
+       `   <Route element={<ProtectedRoute />}>
             <Route path='/app' element={<AuthLayout />}>
               <Route index element={<Dashboard />} />
               <Route path='/app/perfil' element={<Perfil />} />
+              <Route path='/app/perfil/editar-perfil' element={<EditarPerfil />} />
               <Route path='/app/acerca-proyecto' element={<AcercaProyecto />} />
               <Route path='/app/guia-reciclaje' element={<GuiaReciclaje />} />
               <Route path='/app/generadores' element={<Generadores />} />
               <Route path='/app/transporte' element={<Transporte />} />
               <Route path='/app/gestion' element={<Gestion />} />
             </Route>
-          </Route>
+          </Route>`
 
         </Routes>
       </AuthProvider>

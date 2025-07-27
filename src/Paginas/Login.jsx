@@ -29,7 +29,6 @@ const Login = () => {
 
         try {
             const res = await clienteAxios.post("/usuario/login", { email, contrasenna });
-            console.log("Login response:", res.data);
             const { token } = res.data;
             localStorage.setItem("token", token);
             // Obtener perfil y actualizar contexto de autenticación
@@ -41,11 +40,9 @@ const Login = () => {
             };
             const perfilRes = await clienteAxios.get('/usuario/perfil', config);
             setAuth(perfilRes.data);
-
             navigate("/app");
         } catch (error) {
-            console.error("Error al iniciar sesión", error);
-            setErrorMessage(error?.response?.data?.msg || 'Error al iniciar sesión');
+            setErrorMessage(error?.response?.data?.error || 'Error al iniciar sesión');
         }
     }
 
